@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kent Mahal Sullage & Maintenance Management System</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans antialiased">
+
+    <!-- Top Navbar -->
+    <header class="bg-brand-900 text-white shadow-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <svg class="w-8 h-8 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                </svg>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight tracking-wide">Kent Mahal Sullage & Maintenance Portal</h1>
+                    <p class="text-xs text-brand-200">Resident & Facility Operations Portal</p>
+                </div>
+            </div>
+            <div id="user-session-bar" class="hidden flex items-center space-x-4">
+                <span id="session-info" class="text-sm bg-brand-800 px-3 py-1.5 rounded-lg border border-brand-700"></span>
+                <button onclick="openPasswordModal()" class="text-xs bg-brand-700 hover:bg-brand-600 text-white font-medium px-3 py-1.5 rounded-lg transition">Change Password</button>
+                <button onclick="logout()" class="text-xs bg-red-600 hover:bg-red-700 text-white font-medium px-3 py-1.5 rounded-lg transition">Logout</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="hidden fixed inset-0 bg-slate-900/30 backdrop-blur-xs z-50 flex items-center justify-center">
+            <div class="bg-white px-6 py-4 rounded-2xl shadow-xl flex items-center space-x-3 border border-slate-100">
+                <div class="w-5 h-5 border-2 border-brand-600 border-t-transparent rounded-full animate-spin"></div>
+                <span class="text-sm font-semibold text-slate-700">Syncing securely with Google Sheets...</span>
+            </div>
+        </div>
+
+        <!-- AUTH VIEW -->
+        <div id="auth-view" class="max-w-md mx-auto bg-white rounded-2xl shadow-xl border border-slate-100 p-8 mt-10">
+            <div class="text-center mb-8">
+                <h2 class="text-2xl font-bold text-slate-900">Kent Mahal</h2>
+                <p class="text-sm text-slate-500 mt-1">Secure Resident & Admin Portal</p>
+            </div>
+
+            <div class="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1 mb-6">
+                <button id="tab-resident" onclick="switchLoginTab('resident')" class="py-2 text-xs font-semibold rounded-lg bg-white text-brand-900 shadow-sm transition">Resident</button>
+                <button id="tab-admin" onclick="switchLoginTab('admin')" class="py-2 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition">Admin</button>
+                <button id="tab-dbadmin" onclick="switchLoginTab('dbadmin')" class="py-2 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition">DBAdmin</button>
+            </div>
+
+            <!-- Resident LoginForm -->
+            <form id="form-resident" onsubmit="handleLogin(event, 'resident')" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Search Resident Profile (Flat No)</label>
+                    <input type="text" id="resident-search" oninput="filterResidents()" placeholder="Type to filter flat (e.g. T1-8A1)..." class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-xs mb-2 focus:ring-2 focus:ring-brand-500">
+                    <select id="resident-username" size="5" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-500 bg-white">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Password</label>
+                    <input type="password" id="resident-password" required placeholder="Enter password..." class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-500">
+                </div>
+                <button type="submit" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2.5 rounded-xl transition shadow-lg shadow-brand-500/20">Login as Resident</button>
+            </form>
+
+            <!-- Admin LoginForm -->
+            <form id="form-admin" onsubmit="handleLogin(event, 'admin')" class="space-y-4 hidden">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Admin Username</label>
+                    <input type="text" value="admin" disabled class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-500 cursor-not-allowed">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Admin Password</label>
+                    <input type="password" id="admin-password" required placeholder="Enter admin password" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-500">
+                </div>
+                <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2.5 rounded-xl transition shadow-lg">Login as Administrator</button>
+            </form>
+
+            <!-- DBAdmin LoginForm -->
+            <form id="form-dbadmin" onsubmit="handleLogin(event, 'dbadmin')" class="space-y-4 hidden">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">DBAdmin Username</label>
+                    <input type="text" value="dbadmin" disabled class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-500 cursor-not-allowed">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">DBAdmin Password</label>
+                    <input type="password" id="dbadmin-password" required placeholder="Enter DBAdmin password" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-500">
+                </div>
+                <button type="submit" class="w-full bg-indigo-900 hover:bg-indigo-800 text-white font-semibold py-2.5 rounded-xl transition shadow-lg">Login as DBAdmin</button>
+            </form>
+
+            <div id="login-error" class="mt-4 text-center text-xs text-red-600 font-medium hidden"></div>
+        </div>
+
+        <!-- RESIDENT PORTAL VIEW -->
+        <div id="resident-view" class="hidden space-y-8">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                    <div>
+                        <h3 class="text-xl font-bold text-slate-900 flex items-center">
+                            <i class="fa-solid fa-sliders text-brand-600 mr-2"></i>Configure Family Members Parameters
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-1">Configure your household water usage parameters. Checked morning/evening boxes determine how many times per day each activity is calculated.</p>
+                    </div>
+                    <span id="resident-flat-badge" class="bg-brand-50 text-brand-700 px-3 py-1.5 rounded-lg font-bold text-sm border border-brand-200"></span>
+                </div>
+
+                <form id="resident-config-form" onsubmit="handleResidentConfigSubmit(event)" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Household Residents Number</label>
+                            <input type="number" id="res_residents" value="4" min="1" max="10" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Flush Used (6 AM to 6 PM - Day)</label>
+                            <input type="number" id="res_flushDay" value="12" min="0" max="50" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Flush Used (6 PM to 6 AM - Night)</label>
+                            <input type="number" id="res_flushNight" value="8" min="0" max="50" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Bathing Volume / Person / Bath (L)</label>
+                            <input type="number" id="res_bathLiters" value="40" min="0" max="150" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm">
+                            <span class="text-xs text-slate-400">Calculated per checked bath period below</span>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Teeth Brushing Duration / Period (sec)</label>
+                            <input type="number" id="res_brushSec" value="50" min="0" max="300" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm">
+                            <span class="text-xs text-slate-400">Calculated per checked brushing period below</span>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Handwashing Duration / Period (sec)</label>
+                            <input type="number" id="res_handSec" value="30" min="0" max="300" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm">
+                            <span class="text-xs text-slate-400">Calculated per checked handwash period below</span>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Kitchen Cleaning Duration / Period (sec)</label>
+                            <input type="number" id="res_kitchenSec" value="180" min="0" max="900" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm">
+                            <span class="text-xs text-slate-400">Calculated per checked kitchen period below</span>
+                        </div>
+                        <div class="md:col-span-2 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="text-xs font-bold uppercase tracking-wider text-slate-700">Laundry Machine Active</label>
+                                <input type="checkbox" id="res_laundryActive" checked class="w-4 h-4 text-brand-600 rounded">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <span class="text-xs text-slate-500 block mb-1">Loads / Period</span>
+                                    <input type="number" id="res_laundryLoads" value="1" min="0" max="5" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
+                                </div>
+                                <div>
+                                    <span class="text-xs text-slate-500 block mb-1">Buckets / Load (20L each)</span>
+                                    <input type="number" id="res_laundryBuckets" value="3" min="1" max="10" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Peak Period Timing Checkboxes -->
+                    <div class="border-t border-slate-200 pt-5">
+                        <h4 class="text-sm font-bold text-slate-900 mb-1">Peak Period Timing Checkboxes (Morning vs Evening Allocation)</h4>
+                        <p class="text-xs text-slate-500 mb-3">Checking both Morning & Evening calculates that activity twice (2x); checking one calculates it once (1x); checking neither excludes it (0x).</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
+                            <div>
+                                <span class="font-bold text-slate-700 uppercase block mb-2">Teeth Brushing</span>
+                                <label class="flex items-center mb-1.5 cursor-pointer"><input type="checkbox" id="t_brushMorning" checked class="mr-2 rounded">Morning Brushing</label>
+                                <label class="flex items-center cursor-pointer"><input type="checkbox" id="t_brushEvening" class="mr-2 rounded">Evening Brushing</label>
+                            </div>
+                            <div>
+                                <span class="font-bold text-slate-700 uppercase block mb-2">Bathing Timing</span>
+                                <label class="flex items-center mb-1.5 cursor-pointer"><input type="checkbox" id="t_bathMorning" checked class="mr-2 rounded">Morning Bath</label>
+                                <label class="flex items-center cursor-pointer"><input type="checkbox" id="t_bathEvening" checked class="mr-2 rounded">Evening Bath</label>
+                            </div>
+                            <div>
+                                <span class="font-bold text-slate-700 uppercase block mb-2">Handwashing Timing</span>
+                                <label class="flex items-center mb-1.5 cursor-pointer"><input type="checkbox" id="t_handMorning" checked class="mr-2 rounded">Morning Handwash</label>
+                                <label class="flex items-center cursor-pointer"><input type="checkbox" id="t_handEvening" checked class="mr-2 rounded">Evening Handwash</label>
+                            </div>
+                            <div>
+                                <span class="font-bold text-slate-700 uppercase block mb-2">Kitchen & Laundry</span>
+                                <label class="flex items-center mb-1 cursor-pointer"><input type="checkbox" id="t_kitchenMorning" checked class="mr-2 rounded">Morning Kitchen</label>
+                                <label class="flex items-center mb-1 cursor-pointer"><input type="checkbox" id="t_kitchenEvening" checked class="mr-2 rounded">Evening Kitchen</label>
+                                <label class="flex items-center mb-1 cursor-pointer"><input type="checkbox" id="t_laundryMorning" checked class="mr-2 rounded">Morning Laundry</label>
+                                <label class="flex items-center cursor-pointer"><input type="checkbox" id="t_laundryEvening" checked class="mr-2 rounded">Evening Laundry</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end">
+                        <button type="submit" class="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-6 py-3 rounded-xl shadow-md transition">Save & Submit Configuration</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ADMIN PORTAL VIEW -->
+        <div id="admin-view" class="hidden space-y-8">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h3 class="text-xl font-bold text-slate-900 mb-4 flex items-center">
+                    <i class="fa-solid fa-calculator text-brand-600 mr-2"></i>Admin Dashboard & Tank Capacity Calculation Model
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-700 mb-1">Sullage Tank Capacity (L)</label>
+                        <input type="number" id="admin_tankCapacity" value="90000" step="1000" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-700 mb-1">Sullage Retention (Hours)</label>
+                        <input type="number" id="admin_retentionHours" value="1" step="0.5" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-700 mb-1">Sewage Tank Capacity (L)</label>
+                        <input type="number" id="admin_sewageTankCapacity" value="50000" step="1000" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-700 mb-1">Sewage Retention (Hours)</label>
+                        <input type="number" id="admin_sewageRetentionHours" value="24" step="1" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-700 mb-1">Flow Utility Q (L/s)</label>
+                        <input type="number" id="admin_flowRate" value="0.1111" step="0.0001" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                    </div>
+                </div>
+                <div class="flex justify-between items-center">
+                    <button onclick="runAdminCalculation()" class="bg-brand-600 hover:bg-brand-700 text-white font-bold px-6 py-3 rounded-xl shadow-md transition">Run Calculation & Update Model</button>
+                    <span id="admin-submission-status" class="text-xs font-semibold text-slate-600"></span>
+                </div>
+            </div>
+
+            <!-- Calculation Results Card -->
+            <div id="admin-results-container" class="space-y-6 hidden">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <p class="text-xs text-slate-500 uppercase font-semibold">Residents Entered</p>
+                        <p id="calc-residents-entered" class="text-2xl font-bold text-slate-900 mt-1">0</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <p class="text-xs text-amber-600 uppercase font-semibold">Yet to Enter Data</p>
+                        <p id="calc-residents-pending" class="text-2xl font-bold text-amber-600 mt-1">473</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <p class="text-xs text-blue-600 uppercase font-semibold">Total Sullage</p>
+                        <p id="calc-total-sullage" class="text-xl font-bold text-blue-600 mt-1">0 L</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <p class="text-xs text-emerald-600 uppercase font-semibold">Sullage Utilization</p>
+                        <p id="calc-utilization" class="text-xl font-bold text-emerald-600 mt-1">0%</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <p class="text-xs text-indigo-600 uppercase font-semibold">Total Sewage</p>
+                        <p id="calc-total-sewage" class="text-xl font-bold text-indigo-600 mt-1">0 L</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <p class="text-xs text-purple-600 uppercase font-semibold">Sewage Utilization</p>
+                        <p id="calc-sewage-utilization" class="text-xl font-bold text-purple-600 mt-1">0%</p>
+                    </div>
+                </div>
+
+                <!-- Status Banners -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div id="tankStatusBanner" class="rounded-xl p-5 border bg-emerald-50 border-emerald-300 text-emerald-900">
+                        <div class="flex items-center">
+                            <div id="tankStatusIcon" class="text-3xl mr-4 text-emerald-600"><i class="fa-solid fa-shield-check"></i></div>
+                            <div>
+                                <h3 id="tankStatusTitle" class="font-bold text-base">SULLAGE TANK SAFE</h3>
+                                <p id="tankStatusSubtitle" class="text-xs mt-1 text-emerald-700">Capacity is sufficient for retention period.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="sewageTankStatusBanner" class="rounded-xl p-5 border bg-emerald-50 border-emerald-300 text-emerald-900">
+                        <div class="flex items-center">
+                            <div id="sewageTankStatusIcon" class="text-3xl mr-4 text-emerald-600"><i class="fa-solid fa-shield-check"></i></div>
+                            <div>
+                                <h3 id="sewageTankStatusTitle" class="font-bold text-base">SEWAGE TANK SAFE</h3>
+                                <p id="sewageTankStatusSubtitle" class="text-xs mt-1 text-emerald-700">Capacity is sufficient for retention period.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Breakdown Table -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 overflow-x-auto">
+                    <h4 class="font-bold text-slate-900 mb-4">Resident Submission Details & Sullage / Sewage Generation Breakdown</h4>
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700 text-xs uppercase">
+                                <th class="py-2.5 px-3">Resident / Flat</th>
+                                <th class="py-2.5 px-3">Res.</th>
+                                <th class="py-2.5 px-3">Flushes (D/N)</th>
+                                <th class="py-2.5 px-3">Active Periods (Ba/Br/Ha/Ki/La)</th>
+                                <th class="py-2.5 px-3">Sewage (6L/flush)</th>
+                                <th class="py-2.5 px-3">Sullage (Greywater)</th>
+                                <th class="py-2.5 px-3">Total Daily Gen.</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-breakdown-tbody" class="divide-y divide-slate-100 text-slate-700"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- DBADMIN PORTAL VIEW -->
+        <div id="dbadmin-view" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-4">
+                    <div>
+                        <h3 class="text-xl font-bold text-slate-900 flex items-center">
+                            <i class="fa-solid fa-database text-indigo-700 mr-2"></i>DBAdmin Portal - Live Google Sheets Manager
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-1">View, filter, clear individual cells, delete rows, or reset database tables.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <select id="db-sheet-select" onchange="loadDbTable()" class="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold bg-white focus:ring-2 focus:ring-indigo-500">
+                            <option value="ResidentConfigurations">ResidentConfigurations</option>
+                            <option value="AdminSettings">AdminSettings</option>
+                            <option value="Residents">Residents (Directory)</option>
+                            <option value="Admins">Admins</option>
+                        </select>
+                        <button onclick="loadDbTable()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-semibold px-3 py-2 rounded-xl transition">
+                            <i class="fa-solid fa-rotate mr-1"></i>Refresh
+                        </button>
+                        <button onclick="resetDbTable()" class="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs font-semibold px-3 py-2 rounded-xl transition">
+                            <i class="fa-solid fa-arrow-rotate-left mr-1"></i>Reset Table Values
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Search / Filter Bar -->
+                <div class="flex flex-col sm:flex-row justify-between items-center gap-3">
+                    <div class="relative w-full sm:w-96">
+                        <input type="text" id="db-filter-input" oninput="renderDbTable()" placeholder="Filter rows by username, flat, tower, or value..." class="w-full rounded-xl border border-slate-300 pl-9 pr-3.5 py-2 text-xs focus:ring-2 focus:ring-indigo-500">
+                        <i class="fa-solid fa-magnifying-glass text-slate-400 text-xs absolute left-3 top-2.5"></i>
+                    </div>
+                    <span id="db-row-count" class="text-xs font-semibold text-slate-500">0 records shown</span>
+                </div>
+
+                <p class="text-xs text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                    <i class="fa-solid fa-circle-info text-indigo-600 mr-1"></i><strong>Tip:</strong> Hover over any cell and click the small <strong>&times;</strong> icon to clear that specific cell value, or click <strong>Delete Row</strong> on the right to remove the entire record.
+                </p>
+
+                <!-- Dynamic DB Table Container -->
+                <div class="overflow-x-auto rounded-xl border border-slate-200 max-h-[550px]">
+                    <table class="w-full text-left border-collapse text-xs font-mono">
+                        <thead id="db-table-thead" class="bg-slate-900 text-white uppercase sticky top-0 z-10"></thead>
+                        <tbody id="db-table-tbody" class="divide-y divide-slate-200 bg-white text-slate-800"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- PASSWORD CHANGE MODAL -->
+    <div id="password-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-slate-100">
+            <h3 class="text-lg font-bold text-slate-900 flex items-center justify-between">
+                <span>Change Account Password</span>
+                <button onclick="closePasswordModal()" class="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+            </h3>
+            <form onsubmit="handlePasswordChange(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Current Password</label>
+                    <input type="password" id="current-pwd" required class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">New Password</label>
+                    <input type="password" id="new-pwd" required class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Confirm New Password</label>
+                    <input type="password" id="confirm-pwd" required class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                </div>
+                <div id="pwd-error" class="text-xs text-red-600 font-medium hidden"></div>
+                <div class="flex space-x-3 pt-2">
+                    <button type="button" onclick="closePasswordModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2.5 rounded-xl text-sm">Cancel</button>
+                    <button type="submit" class="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2.5 rounded-xl text-sm">Update Password</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="mt-auto bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
+        Kent Mahal Apartment Owners Association &bull; Sullage & Maintenance Management System
+    </footer>
+
+    <!-- App Script Logic (Server-Side Calculation Only) -->
+    <script>
+        // REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
+        const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbzBQJRshLmW4nPmOeNWNXK4g6cPi2HMSeCK4nd_VHdE0YXj9Xp-oXRpUOnRjLViNVzD/exec";
+
+        let cachedCredentials = null;
+        let currentSession = null;
+        let currentDbRows = [];
+        let currentDbSheet = "ResidentConfigurations";
+
+        function showLoading(show) {
+            const overlay = document.getElementById('loading-overlay');
+            if (show) overlay.classList.remove('hidden');
+            else overlay.classList.add('hidden');
+        }
+
+        async function fetchCredentials() {
+            if (cachedCredentials) return cachedCredentials;
+            showLoading(true);
+            try {
+                const res = await fetch(`${API_ENDPOINT}?action=getCredentials`);
+                const data = await res.json();
+                if (data.status === 'success') cachedCredentials = data.credentials;
+            } catch (err) {
+                console.error("Connection error:", err);
+            } finally {
+                showLoading(false);
+            }
+            return cachedCredentials;
+        }
+
+        async function populateResidentDropdown(filterText = "") {
+            const creds = await fetchCredentials();
+            if (!creds || !creds.residents) return;
+            const select = document.getElementById('resident-username');
+            select.innerHTML = '';
+            const lowerFilter = filterText.toLowerCase();
+            let count = 0;
+            for (let uname in creds.residents) {
+                if (uname.toLowerCase().includes(lowerFilter)) {
+                    const opt = document.createElement('option');
+                    opt.value = uname;
+                    opt.textContent = `${uname} (Tower ${creds.residents[uname].tower} - #${creds.residents[uname].flat})`;
+                    select.appendChild(opt);
+                    count++;
+                    if (count > 200 && !lowerFilter) break;
+                }
+            }
+        }
+
+        function filterResidents() {
+            populateResidentDropdown(document.getElementById('resident-search').value);
+        }
+
+        function switchLoginTab(role) {
+            ['resident', 'admin', 'dbadmin'].forEach(r => {
+                document.getElementById(`tab-${r}`).className = "py-2 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition";
+                document.getElementById(`form-${r}`).classList.add('hidden');
+            });
+            document.getElementById(`tab-${role}`).className = "py-2 text-xs font-semibold rounded-lg bg-white text-brand-900 shadow-sm transition";
+            document.getElementById(`form-${role}`).classList.remove('hidden');
+            document.getElementById('login-error').classList.add('hidden');
+        }
+
+        async function handleLogin(event, role) {
+            event.preventDefault();
+            const errDiv = document.getElementById('login-error');
+            errDiv.classList.add('hidden');
+
+            let username = role === 'resident' ? document.getElementById('resident-username').value : role;
+            let pwd = document.getElementById(`${role}-password`).value;
+
+            if (role === 'resident' && !username) {
+                errDiv.textContent = "Please select a resident profile.";
+                errDiv.classList.remove('hidden');
+                return;
+            }
+
+            showLoading(true);
+            try {
+                const res = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'login', role: role, username: username, password: pwd })
+                });
+                const data = await res.json();
+                showLoading(false);
+
+                if (data.status === 'success') {
+                    currentSession = { role: role, username: username };
+                    enterApp();
+                } else {
+                    errDiv.textContent = "Invalid password or username.";
+                    errDiv.classList.remove('hidden');
+                }
+            } catch (err) {
+                showLoading(false);
+                errDiv.textContent = "Connection error during login.";
+                errDiv.classList.remove('hidden');
+            }
+        }
+
+        async function enterApp() {
+            document.getElementById('auth-view').classList.add('hidden');
+            document.getElementById('user-session-bar').classList.remove('hidden');
+            document.getElementById('session-info').textContent = `${currentSession.username} (${currentSession.role.toUpperCase()})`;
+
+            document.getElementById('resident-view').classList.add('hidden');
+            document.getElementById('admin-view').classList.add('hidden');
+            document.getElementById('dbadmin-view').classList.add('hidden');
+
+            if (currentSession.role === 'resident') {
+                document.getElementById('resident-view').classList.remove('hidden');
+                const creds = await fetchCredentials();
+                const profile = creds.residents[currentSession.username];
+                if (profile) {
+                    document.getElementById('resident-flat-badge').textContent = `Tower ${profile.tower} - #${profile.flat}`;
+                }
+                await loadResidentExistingConfig(currentSession.username);
+            } else if (currentSession.role === 'admin') {
+                document.getElementById('admin-view').classList.remove('hidden');
+                await loadAdminSettings();
+            } else if (currentSession.role === 'dbadmin') {
+                document.getElementById('dbadmin-view').classList.remove('hidden');
+                await loadDbTable();
+            }
+        }
+
+        async function loadResidentExistingConfig(username) {
+            showLoading(true);
+            try {
+                const res = await fetch(`${API_ENDPOINT}?action=getResidentConfig&username=${encodeURIComponent(username)}`);
+                const data = await res.json();
+                if (data.status === 'success' && data.config) {
+                    const existing = data.config;
+                    document.getElementById('res_residents').value = existing.residents;
+                    document.getElementById('res_flushDay').value = existing.flushDay;
+                    document.getElementById('res_flushNight').value = existing.flushNight;
+                    document.getElementById('res_bathLiters').value = existing.bathLiters;
+                    document.getElementById('res_brushSec').value = existing.brushSec;
+                    document.getElementById('res_handSec').value = existing.handSec;
+                    document.getElementById('res_kitchenSec').value = existing.kitchenSec;
+                    document.getElementById('res_laundryActive').checked = existing.laundryActive;
+                    document.getElementById('res_laundryLoads').value = existing.laundryLoads;
+                    document.getElementById('res_laundryBuckets').value = existing.laundryBuckets;
+
+                    const t = existing.timing || {};
+                    document.getElementById('t_brushMorning').checked = !!t.brushMorning;
+                    document.getElementById('t_brushEvening').checked = !!t.brushEvening;
+                    document.getElementById('t_bathMorning').checked = !!t.bathMorning;
+                    document.getElementById('t_bathEvening').checked = !!t.bathEvening;
+                    document.getElementById('t_handMorning').checked = !!t.handMorning;
+                    document.getElementById('t_handEvening').checked = !!t.handEvening;
+                    document.getElementById('t_kitchenMorning').checked = !!t.kitchenMorning;
+                    document.getElementById('t_kitchenEvening').checked = !!t.kitchenEvening;
+                    document.getElementById('t_laundryMorning').checked = !!t.laundryMorning;
+                    document.getElementById('t_laundryEvening').checked = !!t.laundryEvening;
+                }
+            } catch (err) {
+                console.error("Error preloading resident config:", err);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function logout() {
+            currentSession = null;
+            document.getElementById('user-session-bar').classList.add('hidden');
+            ['resident-view', 'admin-view', 'dbadmin-view'].forEach(id => document.getElementById(id).classList.add('hidden'));
+            document.getElementById('auth-view').classList.remove('hidden');
+            ['resident-password', 'admin-password', 'dbadmin-password', 'resident-search'].forEach(id => document.getElementById(id).value = '');
+            populateResidentDropdown();
+        }
+
+        function openPasswordModal() {
+            document.getElementById('current-pwd').value = '';
+            document.getElementById('new-pwd').value = '';
+            document.getElementById('confirm-pwd').value = '';
+            document.getElementById('pwd-error').classList.add('hidden');
+            document.getElementById('password-modal').classList.remove('hidden');
+        }
+
+        function closePasswordModal() {
+            document.getElementById('password-modal').classList.add('hidden');
+        }
+
+        async function handlePasswordChange(event) {
+            event.preventDefault();
+            const curr = document.getElementById('current-pwd').value;
+            const fresh = document.getElementById('new-pwd').value;
+            const confirm = document.getElementById('confirm-pwd').value;
+            const errEl = document.getElementById('pwd-error');
+            errEl.classList.add('hidden');
+
+            if (fresh !== confirm) {
+                errEl.textContent = "New passwords do not match.";
+                errEl.classList.remove('hidden');
+                return;
+            }
+
+            let roleKey = currentSession.role === 'admin' ? 'admin' : (currentSession.role === 'dbadmin' ? 'dbadmin' : currentSession.username);
+
+            showLoading(true);
+            try {
+                const res = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'updatePassword',
+                        role: roleKey,
+                        currentPassword: curr,
+                        newPassword: fresh
+                    })
+                });
+                const data = await res.json();
+                showLoading(false);
+
+                if (data.status === 'success') {
+                    alert("Password updated successfully!");
+                    closePasswordModal();
+                } else {
+                    errEl.textContent = "Current password is incorrect.";
+                    errEl.classList.remove('hidden');
+                }
+            } catch (err) {
+                showLoading(false);
+                errEl.textContent = "Failed to update password.";
+                errEl.classList.remove('hidden');
+            }
+        }
+
+        async function handleResidentConfigSubmit(event) {
+            event.preventDefault();
+            const creds = await fetchCredentials();
+            const profile = creds.residents[currentSession.username];
+
+            const config = {
+                username: currentSession.username,
+                tower: profile ? profile.tower : '1',
+                flat: profile ? profile.flat : '1A1',
+                residents: Number(document.getElementById('res_residents').value),
+                flushDay: Number(document.getElementById('res_flushDay').value),
+                flushNight: Number(document.getElementById('res_flushNight').value),
+                bathLiters: Number(document.getElementById('res_bathLiters').value),
+                brushSec: Number(document.getElementById('res_brushSec').value),
+                handSec: Number(document.getElementById('res_handSec').value),
+                kitchenSec: Number(document.getElementById('res_kitchenSec').value),
+                laundryActive: document.getElementById('res_laundryActive').checked,
+                laundryLoads: Number(document.getElementById('res_laundryLoads').value),
+                laundryBuckets: Number(document.getElementById('res_laundryBuckets').value),
+                timing: {
+                    brushMorning: document.getElementById('t_brushMorning').checked,
+                    brushEvening: document.getElementById('t_brushEvening').checked,
+                    bathMorning: document.getElementById('t_bathMorning').checked,
+                    bathEvening: document.getElementById('t_bathEvening').checked,
+                    handMorning: document.getElementById('t_handMorning').checked,
+                    handEvening: document.getElementById('t_handEvening').checked,
+                    kitchenMorning: document.getElementById('t_kitchenMorning').checked,
+                    kitchenEvening: document.getElementById('t_kitchenEvening').checked,
+                    laundryMorning: document.getElementById('t_laundryMorning').checked,
+                    laundryEvening: document.getElementById('t_laundryEvening').checked
+                }
+            };
+
+            showLoading(true);
+            try {
+                const res = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'saveResidentConfig', config: config })
+                });
+                const data = await res.json();
+                showLoading(false);
+                if (data.status === 'success') {
+                    alert("Your household parameters and peak timing choices were saved to Google Sheets!");
+                }
+            } catch (err) {
+                showLoading(false);
+                alert("Failed to save configuration.");
+            }
+        }
+
+        async function loadAdminSettings() {
+            showLoading(true);
+            try {
+                const res = await fetch(`${API_ENDPOINT}?action=getAdminSettings`);
+                const data = await res.json();
+                if (data.status === 'success') {
+                    document.getElementById('admin_tankCapacity').value = data.settings.tankCapacity;
+                    document.getElementById('admin_retentionHours').value = data.settings.retentionHours;
+                    document.getElementById('admin_sewageTankCapacity').value = data.settings.sewageTankCapacity;
+                    document.getElementById('admin_sewageRetentionHours').value = data.settings.sewageRetentionHours;
+                    document.getElementById('admin_flowRate').value = data.settings.flowRate;
+                    document.getElementById('admin-submission-status').textContent = `${data.submittedCount} resident profiles submitted.`;
+                }
+            } catch (err) {
+                console.error("Error loading admin settings:", err);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function runAdminCalculation() {
+            const payload = {
+                action: 'runAdminCalculation',
+                tankCapacity: Number(document.getElementById('admin_tankCapacity').value),
+                retentionHours: Number(document.getElementById('admin_retentionHours').value),
+                sewageTankCapacity: Number(document.getElementById('admin_sewageTankCapacity').value),
+                sewageRetentionHours: Number(document.getElementById('admin_sewageRetentionHours').value),
+                flowRate: Number(document.getElementById('admin_flowRate').value)
+            };
+
+            showLoading(true);
+            try {
+                const res = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                showLoading(false);
+
+                if (data.status !== 'success' || !data.results) {
+                    alert("Calculation failed on server.");
+                    return;
+                }
+
+                const r = data.results;
+                document.getElementById('admin-submission-status').textContent = `${r.enteredCount} of ${r.totalProfiles} resident profiles submitted.`;
+                document.getElementById('calc-residents-entered').textContent = r.enteredCount;
+                document.getElementById('calc-residents-pending').textContent = r.pendingCount;
+                document.getElementById('calc-total-sullage').textContent = `${r.totalSullage.toLocaleString(undefined, {maximumFractionDigits: 1})} L`;
+                document.getElementById('calc-utilization').textContent = `${r.sullageUtilization.toFixed(1)}%`;
+                document.getElementById('calc-total-sewage').textContent = `${r.totalSewage.toLocaleString(undefined, {maximumFractionDigits: 1})} L`;
+                document.getElementById('calc-sewage-utilization').textContent = `${r.sewageUtilization.toFixed(1)}%`;
+
+                // Sullage Banner
+                const banner = document.getElementById('tankStatusBanner');
+                const icon = document.getElementById('tankStatusIcon');
+                const title = document.getElementById('tankStatusTitle');
+                const subtitle = document.getElementById('tankStatusSubtitle');
+
+                if (r.sullageOverloaded) {
+                    banner.className = "rounded-xl p-5 border bg-rose-50 border-rose-300 text-rose-900";
+                    icon.className = "text-3xl mr-4 text-rose-600";
+                    icon.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+                    title.innerText = "SULLAGE TANK OVERLOADED";
+                    subtitle.innerText = `Retention volume (${r.sullageVolOverRetention.toLocaleString()} L) exceeds sullage tank capacity.`;
+                } else {
+                    banner.className = "rounded-xl p-5 border bg-emerald-50 border-emerald-300 text-emerald-900";
+                    icon.className = "text-3xl mr-4 text-emerald-600";
+                    icon.innerHTML = '<i class="fa-solid fa-shield-check"></i>';
+                    title.innerText = "SULLAGE TANK SAFE";
+                    subtitle.innerText = `Retention volume (${r.sullageVolOverRetention.toLocaleString()} L) is within capacity.`;
+                }
+
+                // Sewage Banner
+                const sewageBanner = document.getElementById('sewageTankStatusBanner');
+                const sewageIcon = document.getElementById('sewageTankStatusIcon');
+                const sewageTitle = document.getElementById('sewageTankStatusTitle');
+                const sewageSubtitle = document.getElementById('sewageTankStatusSubtitle');
+
+                if (r.sewageOverloaded) {
+                    sewageBanner.className = "rounded-xl p-5 border bg-rose-50 border-rose-300 text-rose-900";
+                    sewageIcon.className = "text-3xl mr-4 text-rose-600";
+                    sewageIcon.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+                    title.innerText = "SEWAGE TANK OVERLOADED";
+                    sewageSubtitle.innerText = `Retention volume (${r.sewageVolOverRetention.toLocaleString()} L) exceeds sewage tank capacity.`;
+                } else {
+                    sewageBanner.className = "rounded-xl p-5 border bg-emerald-50 border-emerald-300 text-emerald-900";
+                    sewageIcon.className = "text-3xl mr-4 text-emerald-600";
+                    sewageIcon.innerHTML = '<i class="fa-solid fa-shield-check"></i>';
+                    sewageTitle.innerText = "SEWAGE TANK SAFE";
+                    sewageSubtitle.innerText = `Retention volume (${r.sewageVolOverRetention.toLocaleString()} L) is within capacity.`;
+                }
+
+                // Render pre-calculated breakdown rows
+                let breakdownHtml = '';
+                (r.breakdown || []).forEach(item => {
+                    breakdownHtml += `
+                        <tr>
+                            <td class="py-2.5 px-3 font-semibold">${item.label}</td>
+                            <td class="py-2.5 px-3">${item.residents}</td>
+                            <td class="py-2.5 px-3">${item.flushes}</td>
+                            <td class="py-2.5 px-3 text-xs font-mono text-slate-600">${item.periods}</td>
+                            <td class="py-2.5 px-3 font-medium text-indigo-700">${item.sewageDaily.toFixed(1)} L/day</td>
+                            <td class="py-2.5 px-3 font-medium text-blue-700">${item.sullageDaily.toFixed(1)} L/day</td>
+                            <td class="py-2.5 px-3 font-bold text-slate-900">${item.totalDaily.toFixed(1)} L/day</td>
+                        </tr>
+                    `;
+                });
+
+                document.getElementById('admin-breakdown-tbody').innerHTML = breakdownHtml || `<tr><td colspan="7" class="py-4 text-center text-slate-400">No resident submissions recorded yet.</td></tr>`;
+                document.getElementById('admin-results-container').classList.remove('hidden');
+            } catch (err) {
+                showLoading(false);
+                alert("Error running server calculation.");
+            }
+        }
+
+        // --- DBADMIN PORTAL FUNCTIONS ---
+        async function loadDbTable() {
+            currentDbSheet = document.getElementById('db-sheet-select').value;
+            showLoading(true);
+            try {
+                const res = await fetch(`${API_ENDPOINT}?action=getDbTable&sheet=${encodeURIComponent(currentDbSheet)}`);
+                const data = await res.json();
+                showLoading(false);
+                if (data.status === 'success') {
+                    currentDbRows = data.rows || [];
+                    renderDbTable();
+                } else {
+                    alert("Error loading table: " + data.message);
+                }
+            } catch (err) {
+                showLoading(false);
+                alert("Failed to connect to database table.");
+            }
+        }
+
+        function renderDbTable() {
+            const thead = document.getElementById('db-table-thead');
+            const tbody = document.getElementById('db-table-tbody');
+            const filter = document.getElementById('db-filter-input').value.toLowerCase();
+
+            thead.innerHTML = '';
+            tbody.innerHTML = '';
+
+            if (!currentDbRows || currentDbRows.length === 0) {
+                tbody.innerHTML = `<tr><td class="p-4 text-center text-slate-400">Table is empty.</td></tr>`;
+                document.getElementById('db-row-count').textContent = '0 records shown';
+                return;
+            }
+
+            const headers = currentDbRows[0];
+            let headHtml = '<tr><th class="py-2.5 px-3">Row #</th>';
+            headers.forEach(h => {
+                headHtml += `<th class="py-2.5 px-3">${h}</th>`;
+            });
+            headHtml += '<th class="py-2.5 px-3 text-right">Row Action</th></tr>';
+            thead.innerHTML = headHtml;
+
+            let visibleCount = 0;
+            for (let r = 1; r < currentDbRows.length; r++) {
+                const row = currentDbRows[r];
+                const sheetRowIndex = r + 1;
+                const rowText = row.join(' ').toLowerCase();
+                if (filter && !rowText.includes(filter)) continue;
+
+                visibleCount++;
+                let trHtml = `<tr class="hover:bg-slate-50 transition"><td class="py-2 px-3 font-bold text-slate-400">${sheetRowIndex}</td>`;
+                
+                row.forEach((cellVal, cIdx) => {
+                    const sheetColIndex = cIdx + 1;
+                    const displayVal = cellVal === "" || cellVal === null || cellVal === undefined ? '<span class="text-slate-300 italic">empty</span>' : String(cellVal);
+                    const isProtectedPwd = (currentDbSheet === 'Residents' || currentDbSheet === 'Admins') && cIdx === 1;
+                    
+                    trHtml += `
+                        <td class="py-2 px-3 border-r border-slate-100 group relative max-w-[200px] truncate" title="${String(cellVal)}">
+                            <span>${displayVal}</span>
+                            ${!isProtectedPwd ? `<button onclick="clearDbCell(${sheetRowIndex}, ${sheetColIndex})" title="Clear cell value" class="hidden group-hover:inline-block ml-2 text-red-500 hover:text-red-700 font-bold px-1 rounded bg-red-50">&times;</button>` : ''}
+                        </td>
+                    `;
+                });
+
+                trHtml += `
+                    <td class="py-2 px-3 text-right whitespace-nowrap">
+                        <button onclick="deleteDbRow(${sheetRowIndex})" class="text-xs bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-2.5 py-1 rounded-lg font-semibold transition">Delete Row</button>
+                    </td>
+                </tr>`;
+                tbody.innerHTML += trHtml;
+            }
+
+            if (visibleCount === 0) {
+                tbody.innerHTML = `<tr><td colspan="${headers.length + 2}" class="p-6 text-center text-slate-400">No matching records found.</td></tr>`;
+            }
+            document.getElementById('db-row-count').textContent = `${visibleCount} record${visibleCount === 1 ? '' : 's'} shown`;
+        }
+
+        async function clearDbCell(rowIndex, colIndex) {
+            if (!confirm(`Clear value in Row ${rowIndex}, Column ${colIndex} of ${currentDbSheet}?`)) return;
+            showLoading(true);
+            try {
+                const res = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'dbClearCell',
+                        sheetName: currentDbSheet,
+                        rowIndex: rowIndex,
+                        colIndex: colIndex
+                    })
+                });
+                const data = await res.json();
+                showLoading(false);
+                if (data.status === 'success') {
+                    await loadDbTable();
+                } else {
+                    alert("Failed to clear cell: " + data.message);
+                }
+            } catch (err) {
+                showLoading(false);
+                alert("Error clearing cell.");
+            }
+        }
+
+        async function deleteDbRow(rowIndex) {
+            if (!confirm(`Are you sure you want to permanently delete Row ${rowIndex} from ${currentDbSheet}?`)) return;
+            showLoading(true);
+            try {
+                const res = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'dbDeleteRow',
+                        sheetName: currentDbSheet,
+                        rowIndex: rowIndex
+                    })
+                });
+                const data = await res.json();
+                showLoading(false);
+                if (data.status === 'success') {
+                    await loadDbTable();
+                } else {
+                    alert("Failed to delete row: " + data.message);
+                }
+            } catch (err) {
+                showLoading(false);
+                alert("Error deleting row.");
+            }
+        }
+
+        async function resetDbTable() {
+            if (!confirm(`Are you sure you want to reset all values in ${currentDbSheet} to default? This cannot be undone.`)) return;
+            showLoading(true);
+            try {
+                const res = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'dbResetTable',
+                        sheetName: currentDbSheet
+                    })
+                });
+                const data = await res.json();
+                showLoading(false);
+                if (data.status === 'success') {
+                    alert(`${currentDbSheet} has been reset to defaults.`);
+                    await loadDbTable();
+                } else {
+                    alert("Reset info: " + data.message);
+                }
+            } catch (err) {
+                showLoading(false);
+                alert("Error resetting table.");
+            }
+        }
+
+        // Initialize App
+        (async function init() {
+            await fetchCredentials();
+            await populateResidentDropdown();
+        })();
+    </script>
+</body>
+</html>
